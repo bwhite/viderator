@@ -13,7 +13,7 @@ def _read_fps(stderr):
     # [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
     while 1:
         line = stderr.readline()
-        m = re.search(' Stream #.* ([\.\d]+) fps, .*', line)
+        m = re.search(' Stream #.* ([\.\d]+) tbr', line)
         if m is None:
             continue
         return float(m.groups()[0])
