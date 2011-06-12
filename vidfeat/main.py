@@ -85,13 +85,18 @@ def convert_video_ffmpeg(file_name, image_modes):
     fps = _read_fps(proc.stderr)
 
     def gen():
-        frame_num = 0
-        while True:
-            frame = _read_ppm(proc.stdout)
-            if frame is None:
-                break
-            yield frame_num, frame_num / fps, frame
-            frame_num += 1
+        try:
+            frame_num = 0
+            while True:
+                frame = _read_ppm(proc.stdout)
+                if frame is None:
+                    break
+                yield frame_num, frame_num / fps, frame
+                frame_num += 1
+        finally:
+            proc.kill()
+            proc.wait()
+
     return gen()
 
 
