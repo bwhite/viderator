@@ -13,15 +13,16 @@ def frame_iter(stream, image_modes, mod=1):
         else:
             break
     fps = stream.tv.get_fps()
-    num = 0
+    cnt = 0
     while 1:
-        if num % mod == 0:
+        if cnt % mod == 0:
             _, num, frame = stream.tv.get_current_frame()[:3]
             yield num, num / fps, imfeat.convert_image(frame, image_modes)
         try:
             stream.tv.get_next_frame()
         except IOError:
             break
+        cnt += 1
 
 
 def convert_video(video, modes):
