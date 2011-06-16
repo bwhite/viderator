@@ -5,6 +5,7 @@ import Image
 import re
 import StringIO
 import tarfile
+import os
 
 
 def _read_fps(stderr):
@@ -14,6 +15,9 @@ def _read_fps(stderr):
     # [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
     while 1:
         line = stderr.readline()
+        if not line or not line.strip():
+            return
+
         m = re.search(' Stream #.* ([\.\d]+) tbr', line)
         if m is None:
             continue
@@ -52,7 +56,7 @@ def convert_video_ffmpeg(file_name, image_modes):
     """
     Args:
         filename: video file to open
-        modes: List of valid video types
+        modes: List of valid video types (only 'frameiter' is supported)
 
     Returns:
         Valid image
@@ -60,43 +64,33 @@ def convert_video_ffmpeg(file_name, image_modes):
     Raises:
         ValueError: There was a problem converting the color.
     """
-    def _frame_iter(file_name, image_modes):
-        stream = pyffmpeg.VideoStream()
-        stream.open(file_name)
-        return frame_iter(stream, image_modes)
 
-    if image_modes[0] == 'videostream':
-        return _frame_iter(file_name, image_modes)
-
-    elif not image_modes[0] == 'frameiter':
+    if not image_modes[0] == 'frameiter':
         raise ValueError('Unknown image type')
 
-    import os
-
-    with tarfile.open('ffmpegbin.tar') as f:
-        f.extractall()
-
-    ffmpegdir = os.curdir
-    ffmpegbin = os.path.join(ffmpegdir, 'ffmpeg')
-
-    #print os.listdir(ffmpegdir)
-    #print os.listdir(ffmpegbin)
-    args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
+    # Extract the ffmpeg binaries, if needed
+    ffmpegdir = os.path.join(os.curdir, 'ffmpegbin')
+    ffmpegcmd = os.path.join(ffmpegdir, 'ffmpeg')
     try:
-        proc = subprocess.Popen([ffmpegbin] + args,
-                                stdout=subprocess.PIPE,
-                                stdin=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                env={'LD_LIBRARY_PATH': ffmpegdir},
-                                close_fds=True, shell=True)
-    except ValueError, e:
-        print e
-        # Fall back to the other iterator if ffmpeg is not found
-        return _frame_iter(file_name, image_modes)
+        assert 'ffmpeg' in os.listdir(ffmpegdir)
+    except:
+        os.mkdirs(ffmpegdir)
+        with tarfile.open('ffmpegbin.tar') as f:
+            f.extractall('ffmpeg', ffmpegdir)
+
+    # Launch ffmpeg with subprocess
+    args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
+    proc = subprocess.Popen([ffmpegcmd] + args,
+                            stdout=subprocess.PIPE,
+                            stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            env={'LD_LIBRARY_PATH': ffmpegdir},
+                            close_fds=True, shell=False)
 
     # Get the FPS from the ffmpeg stderr dump
     fps = _read_fps(proc.stderr)
 
+    # Read and yield PPMs from the ffmpeg pipe
     def gen():
         try:
             frame_num = 0
@@ -107,6 +101,7 @@ def convert_video_ffmpeg(file_name, image_modes):
                 yield frame_num, frame_num / fps, frame
                 frame_num += 1
         finally:
+            # Kill the ffmpeg process early if the generator is destroyed
             proc.kill()
             proc.wait()
 
