@@ -4,6 +4,7 @@ import subprocess
 import Image
 import re
 import StringIO
+import tarfile
 
 
 def _read_fps(stderr):
@@ -70,11 +71,23 @@ def convert_video_ffmpeg(file_name, image_modes):
     elif not image_modes[0] == 'frameiter':
         raise ValueError('Unknown image type')
 
+    import os
+
+    with tarfile.open('ffmpegbin.tar') as f:
+        f.extractall()
+
+    ffmpegdir = os.curdir
+    ffmpegbin = os.path.join(ffmpegdir, 'ffmpeg')
+
+    #print os.listdir(ffmpegdir)
+    #print os.listdir(ffmpegbin)
+    args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
     try:
-        proc = subprocess.Popen('ffmpeg -i %s -f image2pipe -vcodec ppm -' % file_name,
+        proc = subprocess.Popen([ffmpegbin] + args,
                                 stdout=subprocess.PIPE,
                                 stdin=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
+                                env={'LD_LIBRARY_PATH': ffmpegdir},
                                 close_fds=True, shell=True)
     except ValueError, e:
         print e
