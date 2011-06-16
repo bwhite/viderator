@@ -15,13 +15,13 @@ def _read_fps(stderr):
     # [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
     while 1:
         line = stderr.readline()
-        if not line or not line.strip():
-            return
+        #print line
+        if not line:
+            raise Exception("couldn't parse FPS from ffmpeg stderr")
 
-        m = re.search(' Stream #.* ([\.\d]+) tbr', line)
-        if m is None:
-            continue
-        return float(m.groups()[0])
+        m = re.search('Stream #.* Video: .* ([\.\d]+) tbr', line)
+        if not m is None:
+            return float(m.groups()[0])
 
 
 def _read_ppm(fp):
@@ -52,11 +52,13 @@ def _read_ppm(fp):
     return frame
 
 
-def convert_video_ffmpeg(file_name, image_modes):
+def convert_video_ffmpeg(file_name, image_modes, frozen=False):
     """
     Args:
         filename: video file to open
-        modes: List of valid video types (only 'frameiter' is supported)
+        modes: list of valid video types (only 'frameiter' is supported)
+        frozen: use the ffmpeg binary extracted from  ./ffmpegbin.tar
+                (see vidfeat.freeze_ffmpeg)
 
     Returns:
         Valid image
@@ -68,24 +70,39 @@ def convert_video_ffmpeg(file_name, image_modes):
     if not image_modes[0] == 'frameiter':
         raise ValueError('Unknown image type')
 
-    # Extract the ffmpeg binaries, if needed
-    ffmpegdir = os.path.join(os.curdir, 'ffmpegbin')
-    ffmpegcmd = os.path.join(ffmpegdir, 'ffmpeg')
-    try:
-        assert 'ffmpeg' in os.listdir(ffmpegdir)
-    except:
-        os.mkdirs(ffmpegdir)
-        with tarfile.open('ffmpegbin.tar') as f:
-            f.extractall('ffmpeg', ffmpegdir)
+    if frozen:
+        assert 'ffmpegbin.tar' in os.listdir(os.curdir), \
+               "convert_video_ffmpeg was called with frozen=True, but \
+               ffmpegbin.tar wasn't found. Make sure freeze_ffmpeg() was \
+               passed to hadoopy.launch_frozen"
 
-    # Launch ffmpeg with subprocess
-    args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
-    proc = subprocess.Popen([ffmpegcmd] + args,
+        # Extract the ffmpeg binaries, if needed
+        ffmpegdir = os.path.join(os.curdir, 'ffmpegbin')
+        ffmpegcmd = os.path.join(ffmpegdir, 'ffmpeg')
+
+        if not os.path.exists(ffmpegdir):
+            os.makedirs(ffmpegdir)
+
+        if not os.path.exists(ffmpegcmd) or os.path.getmtime(ffmpegcmd) < \
+           os.path.getmtime('ffmpegbin.tar'):
+            with tarfile.open('ffmpegbin.tar') as f:
+                f.extractall(ffmpegdir)
+
+        # Launch ffmpeg with subprocess
+        args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
+        proc = subprocess.Popen([ffmpegcmd] + args,
                             stdout=subprocess.PIPE,
                             stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             env={'LD_LIBRARY_PATH': ffmpegdir},
                             close_fds=True, shell=False)
+    else:
+        cmd = 'ffmpeg -i %s -f image2pipe -vcodec ppm -' % file_name
+        proc = subprocess.Popen(cmd,
+                            stdout=subprocess.PIPE,
+                            stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            close_fds=True, shell=True)
 
     # Get the FPS from the ffmpeg stderr dump
     fps = _read_fps(proc.stderr)
@@ -108,7 +125,7 @@ def convert_video_ffmpeg(file_name, image_modes):
     return gen()
 
 
-def frame_iter(stream, image_modes, mod=1):
+def frame_iter(stream, image_modes):
     SEEK_START_ATTEMPTS = 3
     # Use seek to find the first good frame
     for i in range(SEEK_START_ATTEMPTS):
@@ -119,16 +136,13 @@ def frame_iter(stream, image_modes, mod=1):
         else:
             break
     fps = stream.tv.get_fps()
-    cnt = 0
     while 1:
-        if cnt % mod == 0:
-            _, num, frame = stream.tv.get_current_frame()[:3]
-            yield num, num / fps, imfeat.convert_image(frame, image_modes)
+        _, num, frame = stream.tv.get_current_frame()[:3]
+        yield num, num / fps, imfeat.convert_image(frame, image_modes)
         try:
             stream.tv.get_next_frame()
         except IOError:
             break
-        cnt += 1
 
 
 def convert_video(video, modes):
@@ -148,7 +162,5 @@ def convert_video(video, modes):
             return video
         elif modes[0] == 'frameiter':
             return frame_iter(video, modes[1])
-        elif modes[0] == 'frameiterskip':
-            return frame_iter(video, modes[1], modes[2])
     else:
         raise ValueError('Unknown image type')

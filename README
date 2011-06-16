@@ -1,0 +1,4 @@
+Brandyn White <bwhite@dappervision.com>
+Andrew Miller <amiller@dappervision.com>
+
+Extract frames from video files using either pyffmpeg or the ffmpeg command line program.
