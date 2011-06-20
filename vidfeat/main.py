@@ -52,7 +52,7 @@ def _read_ppm(fp):
     return frame
 
 
-def convert_video_ffmpeg(file_name, image_modes, frozen=False):
+def convert_video_ffmpeg(file_name, modes, frozen=False):
     """
     Args:
         filename: video file to open
@@ -67,8 +67,14 @@ def convert_video_ffmpeg(file_name, image_modes, frozen=False):
         ValueError: There was a problem converting the color.
     """
 
-    if not image_modes[0] == 'frameiter':
+    if not modes[0] in ['frameiter', 'frameiterskip']:
         raise ValueError('Unknown image type')
+
+    if modes[0] == 'frameiterskip':
+        image_modes, mod = modes[1:]
+    else:
+        image_modes, = modes[1:]
+        mod = 1
 
     if frozen:
         assert 'ffmpegbin.tar' in os.listdir(os.curdir), \
@@ -115,7 +121,10 @@ def convert_video_ffmpeg(file_name, image_modes, frozen=False):
                 frame = _read_ppm(proc.stdout)
                 if frame is None:
                     break
-                yield frame_num, frame_num / fps, frame
+                if frame_num % mod == 0:
+                    yield (frame_num,
+                           frame_num / fps,
+                           imfeat.convert_image(frame, image_modes))
                 frame_num += 1
         finally:
             # Kill the ffmpeg process early if the generator is destroyed
@@ -125,7 +134,7 @@ def convert_video_ffmpeg(file_name, image_modes, frozen=False):
     return gen()
 
 
-def frame_iter(stream, image_modes):
+def frame_iter(stream, image_modes, mod=1):
     SEEK_START_ATTEMPTS = 3
     # Use seek to find the first good frame
     for i in range(SEEK_START_ATTEMPTS):
@@ -136,13 +145,16 @@ def frame_iter(stream, image_modes):
         else:
             break
     fps = stream.tv.get_fps()
+    cnt = 0
     while 1:
-        _, num, frame = stream.tv.get_current_frame()[:3]
-        yield num, num / fps, imfeat.convert_image(frame, image_modes)
+        if cnt % mod == 0:
+            _, num, frame = stream.tv.get_current_frame()[:3]
+            yield num, num / fps, imfeat.convert_image(frame, image_modes)
         try:
             stream.tv.get_next_frame()
         except IOError:
             break
+        cnt += 1
 
 
 def convert_video(video, modes):
@@ -162,5 +174,6 @@ def convert_video(video, modes):
             return video
         elif modes[0] == 'frameiter':
             return frame_iter(video, modes[1])
-    else:
-        raise ValueError('Unknown image type')
+        elif modes[0] == 'frameiterskip':
+            return frame_iter(video, modes[1], modes[2])
+    raise ValueError('Unknown image type')
