@@ -15,7 +15,7 @@ def _read_fps(stderr):
     # [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
     while 1:
         line = stderr.readline()
-        #print line
+        print line.strip()
         if not line:
             raise Exception("couldn't parse FPS from ffmpeg stderr")
 
@@ -116,16 +116,20 @@ def convert_video_ffmpeg(file_name, modes, frozen=False):
     # Read and yield PPMs from the ffmpeg pipe
     def gen():
         try:
-            frame_num = 0
+            frame_num = -1
+            skip_next = None
             while True:
                 frame = _read_ppm(proc.stdout)
+                frame_num += 1
                 if frame is None:
                     break
-                if frame_num % mod == 0:
-                    yield (frame_num,
-                           frame_num / fps,
-                           imfeat.convert_image(frame, image_modes))
-                frame_num += 1
+                if skip_next is not None:
+                    if frame_num < skip_next: continue
+                else:
+                    if frame_num % mod != 0: continue
+                skip_next = yield(frame_num,
+                                  frame_num / fps,
+                                  imfeat.convert_image(frame, image_modes))
         finally:
             # Kill the ffmpeg process early if the generator is destroyed
             proc.kill()
