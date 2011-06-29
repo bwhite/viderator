@@ -26,7 +26,8 @@ def freeze_ffmpeg():
 
     """
 
-    program = subprocess.check_output('which ffmpeg', shell=True).strip()
+    proc = subprocess.Popen('which ffmpeg', shell=True).strip()
+    program = process.stdout.read()
     libs = bindepend.selectImports(program)
 
     try:
