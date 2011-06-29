@@ -33,10 +33,10 @@ def freeze_ffmpeg():
     try:
         tmpdir = tempfile.mkdtemp()
         tar = os.path.join(tmpdir, 'ffmpegbin.tar')
-        with tarfile.open(tar, 'w', dereference=True) as f:
-            for _, fn in libs + [('', program)]:
-                f.add(fn, arcname=os.path.basename(fn))
-
+        f = tarfile.open(tar, 'w', dereference=True)
+        for _, fn in libs + [('', program)]:
+            f.add(fn, arcname=os.path.basename(fn))
+        f.close()
         yield tar
 
     finally:

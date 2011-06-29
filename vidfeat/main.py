@@ -91,8 +91,9 @@ def convert_video_ffmpeg(file_name, modes, frozen=False):
 
         if not os.path.exists(ffmpegcmd) or os.path.getmtime(ffmpegcmd) < \
            os.path.getmtime('ffmpegbin.tar'):
-            with tarfile.open('ffmpegbin.tar') as f:
-                f.extractall(ffmpegdir)
+            f = tarfile.open('ffmpegbin.tar')
+            f.extractall(ffmpegdir)
+            f.close()
 
         # Launch ffmpeg with subprocess
         args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
