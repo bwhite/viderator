@@ -3,9 +3,10 @@ import pyffmpeg
 import subprocess
 import Image
 import re
-import StringIO
+import cStringIO as StringIO
 import tarfile
 import os
+import sys
 
 
 def _read_fps(stderr):
@@ -31,23 +32,19 @@ def _read_ppm(fp):
     format = fp.readline()
     if not format:
         return None
-
     # P6
     buf += format
     size = fp.readline()
     buf += size
 
     # 320 240
-    x,y = map(int, re.match('(\d+)\s+(\d+)', size).groups())
-
+    x, y = map(int, re.match('(\d+)\s+(\d+)', size).groups())
     # 255
     maxcol = fp.readline()
     buf += maxcol
-
     # <rgb data>
-    data = fp.read(x*y*3)
+    data = fp.read(x * y * 3)
     buf += data
-
     frame = Image.open(StringIO.StringIO(buf))
     return frame
 
@@ -75,59 +72,64 @@ def convert_video_ffmpeg(file_name, modes, frozen=False):
     else:
         image_modes, = modes[1:]
         mod = 1
-
+    if not os.path.exists(file_name):
+        raise IOError("No such file: '%s'" % file_name)
     if frozen:
-        assert 'ffmpegbin.tar' in os.listdir(os.curdir), \
-               "convert_video_ffmpeg was called with frozen=True, but \
-               ffmpegbin.tar wasn't found. Make sure freeze_ffmpeg() was \
-               passed to hadoopy.launch_frozen"
+        assert os.path.exists('ffmpegbin.tar'), \
+               ("convert_video_ffmpeg was called with frozen=True, but "
+                "ffmpegbin.tar wasn't found. Make sure freeze_ffmpeg() was "
+                "passed to hadoopy.launch_frozen")
 
         # Extract the ffmpeg binaries, if needed
         ffmpegdir = os.path.join(os.curdir, 'ffmpegbin')
         ffmpegcmd = os.path.join(ffmpegdir, 'ffmpeg')
-
-        if not os.path.exists(ffmpegdir):
+        try:
             os.makedirs(ffmpegdir)
-
-        if not os.path.exists(ffmpegcmd) or os.path.getmtime(ffmpegcmd) < \
-           os.path.getmtime('ffmpegbin.tar'):
+        except OSError:
+            pass
+        if not os.path.exists(ffmpegcmd) or os.path.getmtime(ffmpegcmd) < os.path.getmtime('ffmpegbin.tar'):
             f = tarfile.open('ffmpegbin.tar')
             f.extractall(ffmpegdir)
             f.close()
 
         # Launch ffmpeg with subprocess
-        args = ('-i %s -f image2pipe -vcodec ppm -' % file_name).split()
+        args = ('-i %s -f image2pipe -vcodec ppm -y -' % file_name).split()
         proc = subprocess.Popen([ffmpegcmd] + args,
-                            stdout=subprocess.PIPE,
-                            stdin=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            env={'LD_LIBRARY_PATH': ffmpegdir},
-                            close_fds=True, shell=False)
+                                stdout=subprocess.PIPE,
+                                stdin=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                env={'LD_LIBRARY_PATH': ffmpegdir},
+                                close_fds=True, shell=False)
     else:
-        cmd = 'ffmpeg -i %s -f image2pipe -vcodec ppm -' % file_name
+        cmd = 'ffmpeg -i %s -f image2pipe -vcodec ppm -y -' % file_name
         proc = subprocess.Popen(cmd,
-                            stdout=subprocess.PIPE,
-                            stdin=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            close_fds=True, shell=True)
+                                stdout=subprocess.PIPE,
+                                stdin=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                close_fds=True, shell=True)
 
     # Get the FPS from the ffmpeg stderr dump
     fps = _read_fps(proc.stderr)
-
+    proc.stderr.close()
     # Read and yield PPMs from the ffmpeg pipe
     def gen():
+        #import select
         try:
             frame_num = -1
             skip_next = None
             while True:
+                #while select.select([proc.stderr], [], [], .01)[0]:  # NOTE(brandyn): Deflate stderr
+                #    proc.stderr.read(1)
                 frame = _read_ppm(proc.stdout)
                 frame_num += 1
                 if frame is None:
                     break
                 if skip_next is not None:
-                    if frame_num < skip_next: continue
+                    if frame_num < skip_next:
+                        continue
                 else:
-                    if frame_num % mod != 0: continue
+                    if frame_num % mod != 0:
+                        continue
                 skip_next = yield(frame_num,
                                   frame_num / fps,
                                   imfeat.convert_image(frame, image_modes))
