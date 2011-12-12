@@ -1,5 +1,4 @@
 import imfeat
-import pyffmpeg
 import subprocess
 import Image
 import re
@@ -174,6 +173,7 @@ def convert_video(video, modes):
     Raises:
         ValueError: There was a problem converting the color.
     """
+    import pyffmpeg
     if isinstance(video, pyffmpeg.VideoStream):
         if modes[0] == 'videostream':
             return video
