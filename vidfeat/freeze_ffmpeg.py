@@ -16,7 +16,10 @@ def freeze_ffmpeg():
     tar file is created in a temp folder and cleaned up automatically.
 
     Returns:
-       absolute path to a tar file
+        absolute path to a tar file
+
+    Raises:
+        OSError:  FFMPEG not found.
 
     Example:
         with freeze_ffmpeg() as ffmpegtar:
@@ -28,13 +31,18 @@ def freeze_ffmpeg():
 
     proc = subprocess.Popen('which ffmpeg', shell=True, stdout=subprocess.PIPE)
     program = proc.stdout.read().strip()
+    if not program:
+        raise OSError('ffmpeg not installed!')
     libs = bindepend.selectImports(program)
 
     try:
         tmpdir = tempfile.mkdtemp()
         tar = os.path.join(tmpdir, 'ffmpegbin.tar')
         f = tarfile.open(tar, 'w', dereference=True)
+        print('ffmpeg freeze start')
+        print(libs + [('', program)])
         for _, fn in libs + [('', program)]:
+            print(fn)
             f.add(fn, arcname=os.path.basename(fn))
         f.close()
         yield tar
