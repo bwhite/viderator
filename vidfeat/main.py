@@ -66,11 +66,13 @@ def convert_video_ffmpeg(file_name, modes, frozen=False):
         ValueError: There was a problem converting the color.
     """
 
-    if not modes[0] in ['frameiter', 'frameiterskip']:
+    if not modes[0] in ['frameiter', 'frameiterskip', 'frameiterskiptime']:
         raise ValueError('Unknown image type')
 
     if modes[0] == 'frameiterskip':
         image_modes, mod = modes[1:]
+    elif modes[0] == 'frameiterskiptime':
+        image_modes, mod = modes[1], 0  # NOTE(brandyn): We fixup mod below
     else:
         image_modes, = modes[1:]
         mod = 1
@@ -112,7 +114,9 @@ def convert_video_ffmpeg(file_name, modes, frozen=False):
 
     # Get the FPS from the ffmpeg stderr dump
     fps = _read_fps(proc.stderr)
-
+    if modes[0] == 'frameiterskiptime':
+        mod = int(round(fps * modes[2]))
+    mod = int(max(1, mod))  # Must be at least 1
     # Read and yield PPMs from the ffmpeg pipe
     def gen():
         try:
@@ -159,26 +163,3 @@ def frame_iter(stream, image_modes, mod=1):
         except IOError:
             break
         cnt += 1
-
-
-def convert_video(video, modes):
-    """
-    Args:
-        image: A pyffmpeg.VideoStream video object
-        modes: List of valid video types
-
-    Returns:
-        Valid image
-
-    Raises:
-        ValueError: There was a problem converting the color.
-    """
-    import pyffmpeg
-    if isinstance(video, pyffmpeg.VideoStream):
-        if modes[0] == 'videostream':
-            return video
-        elif modes[0] == 'frameiter':
-            return frame_iter(video, modes[1])
-        elif modes[0] == 'frameiterskip':
-            return frame_iter(video, modes[1], modes[2])
-    raise ValueError('Unknown image type')

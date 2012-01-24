@@ -1,7 +1,6 @@
 from distutils.core import setup
 import re
 from distutils.extension import Extension
-import numpy as np
 
 
 def get_cython_version():
