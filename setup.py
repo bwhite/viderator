@@ -1,6 +1,5 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 import re
-from distutils.extension import Extension
 
 
 def get_cython_version():
@@ -37,5 +36,5 @@ ext_modules = []
 setup(name='vidfeat',
       cmdclass=cmdclass,
       version='.01',
-      packages=['vidfeat'],
+      packages=find_packages(),
       ext_modules=ext_modules)
