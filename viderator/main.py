@@ -1,10 +1,8 @@
-import imfeat
 import subprocess
-import Image
-import re
-import StringIO
 import tarfile
 import os
+import re
+import numpy as np
 
 
 def _read_fps(stderr):
@@ -26,29 +24,11 @@ def _read_fps(stderr):
 def _read_ppm(fp):
     """Read one PPM image at a from a stream (ffmpeg image2pipe output)
     """
-    buf = ''
-    format = fp.readline()
-    if not format:
-        return None
-
-    # P6
-    buf += format
-    size = fp.readline()
-    buf += size
-
-    # 320 240
-    x, y = map(int, re.match('(\d+)\s+(\d+)', size).groups())
-
-    # 255
-    maxcol = fp.readline()
-    buf += maxcol
-
-    # <rgb data>
-    data = fp.read(x*y*3)
-    buf += data
-    # TODO(brandyn): Make this numpy
-    frame = Image.open(StringIO.StringIO(buf))
-    return frame
+    assert fp.readline()[:-1] == 'P6'
+    cols, rows = map(int, fp.readline()[:-1].split())
+    assert fp.readline()[:-1] == '255'
+    # TODO(brandyn): Flip from RGB to BGR
+    return np.frombuffer(fp.read(cols * rows * 3), dtype=np.uint8).reshape((rows, cols, 3))
 
 
 def frame_iter(file_name, frozen=False):
