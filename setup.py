@@ -33,7 +33,7 @@ except ImportError:
 
 
 ext_modules = []
-setup(name='vidfeat',
+setup(name='viderator',
       cmdclass=cmdclass,
       version='.01',
       packages=find_packages(),

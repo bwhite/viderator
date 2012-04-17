@@ -1,2 +1,2 @@
-from main import convert_video_ffmpeg
+from main import frame_iter
 from freeze_ffmpeg import freeze_ffmpeg
