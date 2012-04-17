@@ -41,6 +41,10 @@ class Test(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_nonexist(self):
+        import viderator
+        self.assertRaises(IOError, viderator.frame_iter, ('sdklfjslkdfjsjdfkjskdfjsdjfkjskdfjskdfjksjfdj.IDONTEXIST.avi',))
+
     def test_name(self):
         import viderator
         import time

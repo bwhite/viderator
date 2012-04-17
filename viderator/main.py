@@ -13,8 +13,10 @@ def _read_fps(stderr):
     while 1:
         line = stderr.readline()
         print line.strip()
+        if ': No such file or directory' in line:
+            raise IOError(line)
         if not line:
-            raise Exception("couldn't parse FPS from ffmpeg stderr")
+            raise IOError("couldn't parse FPS from ffmpeg stderr")
 
         m = re.search('Stream #.* Video: .* ([\.\d]+) tbr', line)
         if not m is None:
@@ -81,6 +83,7 @@ def frame_iter(file_name, frozen=False):
 
     # Get the FPS from the ffmpeg stderr dump
     fps = _read_fps(proc.stderr)
+    proc.stderr.close()
     # Read and yield PPMs from the ffmpeg pipe
     
     def gen():
