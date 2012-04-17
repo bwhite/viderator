@@ -34,15 +34,17 @@ def _read_ppm(fp):
     return frame[:, :, ::-1]
 
 
-def frame_iter(file_name, frozen=False):
+def frame_iter(file_name, frozen=False, frame_skip=1):
     """
     Args:
         filename: video file to open
         frozen: use the ffmpeg binary extracted from  ./ffmpegbin.tar
-                (see vidfeat.freeze_ffmpeg)
+            (see vidfeat.freeze_ffmpeg)
+        frame_skip: How many frames to increment by (default 1 produces all frames,
+            2 skips every other one)
 
     Yields:
-        frame_num, frame_time, frame where
+        Tuple of frame_num, frame_time, frame where
         frame_num: Current frame number (starts at 0)
         frame_time: Current video time (starts at 0., uses FPS taken from ffmpeg)
         frame: Numpy array (bgr)
@@ -50,6 +52,7 @@ def frame_iter(file_name, frozen=False):
     Raises:
         IOError: Problem reading from ffmpeg
     """
+    assert frame_skip > 0 and isinstance(frame_skip, int)
     if frozen:
         assert 'ffmpegbin.tar' in os.listdir(os.curdir), \
                "convert_video_ffmpeg was called with frozen=True, but \
@@ -96,7 +99,8 @@ def frame_iter(file_name, frozen=False):
             frame_num += 1
             if frame is None:
                 break
-            yield frame_num, frame_num / fps, frame
+            if frame_num % frame_skip == 0:
+                yield frame_num, frame_num / fps, frame
     finally:
         # Kill the ffmpeg process early if the generator is destroyed
         proc.kill()
