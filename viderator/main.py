@@ -29,8 +29,9 @@ def _read_ppm(fp):
     assert fp.readline()[:-1] == 'P6'
     cols, rows = map(int, fp.readline()[:-1].split())
     assert fp.readline()[:-1] == '255'
-    # TODO(brandyn): Flip from RGB to BGR
-    return np.frombuffer(fp.read(cols * rows * 3), dtype=np.uint8).reshape((rows, cols, 3))
+    frame = np.frombuffer(fp.read(cols * rows * 3), dtype=np.uint8).reshape((rows, cols, 3))
+    # Flip from RGB to BGR
+    return frame[:, :, ::-1]
 
 
 def frame_iter(file_name, frozen=False):
@@ -40,11 +41,14 @@ def frame_iter(file_name, frozen=False):
         frozen: use the ffmpeg binary extracted from  ./ffmpegbin.tar
                 (see vidfeat.freeze_ffmpeg)
 
-    Returns:
-        Valid image
+    Yields:
+        frame_num, frame_time, frame where
+        frame_num: Current frame number (starts at 0)
+        frame_time: Current video time (starts at 0., uses FPS taken from ffmpeg)
+        frame: Numpy array (bgr)
 
     Raises:
-        ValueError: There was a problem converting the color.
+        IOError: Problem reading from ffmpeg
     """
     if frozen:
         assert 'ffmpegbin.tar' in os.listdir(os.curdir), \
@@ -85,18 +89,15 @@ def frame_iter(file_name, frozen=False):
     fps = _read_fps(proc.stderr)
     proc.stderr.close()
     # Read and yield PPMs from the ffmpeg pipe
-    
-    def gen():
-        try:
-            frame_num = -1
-            while True:
-                frame = _read_ppm(proc.stdout)
-                frame_num += 1
-                if frame is None:
-                    break
-                yield frame_num, frame_num / fps, frame
-        finally:
-            # Kill the ffmpeg process early if the generator is destroyed
-            proc.kill()
-            proc.wait()
-    return gen()
+    try:
+        frame_num = -1
+        while True:
+            frame = _read_ppm(proc.stdout)
+            frame_num += 1
+            if frame is None:
+                break
+            yield frame_num, frame_num / fps, frame
+    finally:
+        # Kill the ffmpeg process early if the generator is destroyed
+        proc.kill()
+        proc.wait()

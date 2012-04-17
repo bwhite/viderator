@@ -43,7 +43,7 @@ class Test(unittest.TestCase):
 
     def test_nonexist(self):
         import viderator
-        self.assertRaises(IOError, viderator.frame_iter, ('sdklfjslkdfjsjdfkjskdfjsdjfkjskdfjskdfjksjfdj.IDONTEXIST.avi',))
+        self.assertRaises(IOError, viderator.frame_iter('sdklfjslkdfjsjdfkjskdfjsdjfkjskdfjskdfjksjfdj.IDONTEXIST.avi',).next)
 
     def test_name(self):
         import viderator
