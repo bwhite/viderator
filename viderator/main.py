@@ -2,6 +2,7 @@ import subprocess
 import tarfile
 import os
 import re
+import sys
 import numpy as np
 
 
@@ -13,12 +14,13 @@ def _read_fps(stderr):
     while 1:
         line = stderr.readline()
         print line.strip()
+        if 'Frame rate very high for a muxer not' in line:
+            raise IOError(line)
         if ': No such file or directory' in line:
             raise IOError(line)
         if not line:
             raise IOError("couldn't parse FPS from ffmpeg stderr")
-
-        m = re.search('Stream #.* Video: .* ([\.\d]+) tbr', line)
+        m = re.search('Stream #.* Video: ppm,.* ([\.\d]+) fps\(c\)', line)
         if not m is None:
             return float(m.groups()[0])
 
@@ -26,12 +28,22 @@ def _read_fps(stderr):
 def _read_ppm(fp):
     """Read one PPM image at a from a stream (ffmpeg image2pipe output)
     """
-    assert fp.readline()[:-1] == 'P6'
-    cols, rows = map(int, fp.readline()[:-1].split())
-    assert fp.readline()[:-1] == '255'
+    l = fp.readline()[:-1]
+    assert l == 'P6'
+    l = fp.readline()[:-1]
+    try:
+        cols, rows = map(int, l.split())
+    except ValueError:  # No more images
+        return
+    l = fp.readline().strip()
+    try:
+        assert l == '255'
+    except:
+        print repr(l)
+        raise
     frame = np.frombuffer(fp.read(cols * rows * 3), dtype=np.uint8).reshape((rows, cols, 3))
     # Flip from RGB to BGR
-    return frame[:, :, ::-1]
+    return np.ascontiguousarray(frame[:, :, ::-1])
 
 
 def frame_iter(file_name, frozen=False, frame_skip=1):

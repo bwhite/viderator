@@ -50,12 +50,13 @@ class Test(unittest.TestCase):
         import time
         import numpy as np
         st = time.time()
-        for frame_num, frame_time, frame in viderator.frame_iter('/mnt/sdd/events/E021/HVC003365.mp4'):
+        for frame_num, frame_time, frame in viderator.frame_iter('HVC236624.mp4'):
             self.assertTrue(isinstance(frame_num, int))
             self.assertTrue(isinstance(frame_time, float))
             self.assertTrue(isinstance(frame, np.ndarray))
             if frame_num > 1000:
                 break
+        print(frame_num)
         print((time.time() - st) / float(frame_num))
 
     def test_skip(self):
@@ -63,13 +64,14 @@ class Test(unittest.TestCase):
         import time
         import numpy as np
         st = time.time()
-        for frame_num, frame_time, frame in viderator.frame_iter('/mnt/sdd/events/E021/HVC003365.mp4', frame_skip=2):
+        for frame_num, frame_time, frame in viderator.frame_iter('HVC236624.mp4', frame_skip=2):
             self.assertTrue(frame_num % 2 == 0)
             self.assertTrue(isinstance(frame_num, int))
             self.assertTrue(isinstance(frame_time, float))
             self.assertTrue(isinstance(frame, np.ndarray))
             if frame_num > 1000:
                 break
+        print(frame_num)
         print((time.time() - st) / float(frame_num))
 
 
