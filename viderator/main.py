@@ -25,8 +25,8 @@ def _read_fps(stderr):
         if not m is None:
             return float(m.groups()[0])
         # Method 1
-        # Stream #0:0(und): Video: ppm, rgb24, 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 200 kb/s, 90k tbn, 29.97 tbc
-        m = re.search('Stream #.* Video: ppm,.* ([\.\d]+) tbc', line)
+        # Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p, 1280x720 [SAR 1:1 DAR 16:9], 1984 kb/s, 29.97 fps, 29.97 tbr, 30k tbn, 59.94 tbc
+        m = re.search('Stream #.* Video: .* ([\.\d]+) fps', line)
         if not m is None:
             return float(m.groups()[0])
 
