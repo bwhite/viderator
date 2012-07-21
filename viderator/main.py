@@ -9,8 +9,7 @@ import numpy as np
 def _read_fps(stderr):
     """Read the fps from FFMpeg's debug output
     """
-    # Stream #0.0: Video: mpeg4, yuv420p, 1280x720 \
-    # [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
+    
     while 1:
         line = stderr.readline()
         print line.strip()
@@ -20,7 +19,14 @@ def _read_fps(stderr):
             raise IOError(line)
         if not line:
             raise IOError("couldn't parse FPS from ffmpeg stderr")
+        # Method 0
+        # Stream #0.0: Video: mpeg4, yuv420p, 1280x720 [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
         m = re.search('Stream #.* Video: ppm,.* ([\.\d]+) fps\(c\)', line)
+        if not m is None:
+            return float(m.groups()[0])
+        # Method 1
+        # Stream #0:0(und): Video: ppm, rgb24, 1280x720 [SAR 1:1 DAR 16:9], q=2-31, 200 kb/s, 90k tbn, 29.97 tbc
+        m = re.search('Stream #.* Video: ppm,.* ([\.\d]+) tbc', line)
         if not m is None:
             return float(m.groups()[0])
 
