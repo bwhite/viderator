@@ -28,21 +28,29 @@ def freeze_ffmpeg():
                                   files=[ffmpegtar])
 
     """
+    try:
+        tmpdir, tar = main()
+        yield tar
+    finally:
+        shutil.rmtree(tmpdir)
 
+
+def main():
     proc = subprocess.Popen('which ffmpeg', shell=True, stdout=subprocess.PIPE)
     program = proc.stdout.read().strip()
     if not program:
         raise OSError('ffmpeg not installed!')
     libs = bindepend.selectImports(program)
 
-    try:
-        tmpdir = tempfile.mkdtemp()
-        tar = os.path.join(tmpdir, 'ffmpegbin.tar')
-        f = tarfile.open(tar, 'w', dereference=True)
-        for _, fn in libs + [('', program)]:
-            f.add(fn, arcname=os.path.basename(fn))
-        f.close()
-        yield tar
+    tmpdir = tempfile.mkdtemp()
+    tar = os.path.join(tmpdir, 'ffmpegbin.tar')
+    f = tarfile.open(tar, 'w')
+    f.dereference = True  # for Python 2.4 compatibility, this is not in constructor
+    for _, fn in libs + [('', program)]:
+        f.add(fn, arcname=os.path.basename(fn))
+    f.close()
+    return tmpdir, tar
 
-    finally:
-        shutil.rmtree(tmpdir)
+
+if __name__ == '__main__':
+    main()
