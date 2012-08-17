@@ -10,7 +10,7 @@ bindepend.silent = True
 
 
 @contextmanager
-def freeze_ffmpeg(preset_path='/tmp/ffmpegbin.tar'):
+def freeze_ffmpeg(preset_path='~/ffmpegbin.tar'):
     """Archive the ffmpeg binary and its dependencies so it can be copied to
     hadoop. The ffmpeg found on the path (i.e. `which ffmpeg`) is used. The
     tar file is created in a temp folder and cleaned up automatically.
@@ -28,6 +28,7 @@ def freeze_ffmpeg(preset_path='/tmp/ffmpegbin.tar'):
                                   files=[ffmpegtar])
 
     """
+    preset_path = os.path.expanduser(preset_path)
     if os.path.exists(preset_path):
         yield preset_path
         return

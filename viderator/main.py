@@ -22,10 +22,12 @@ def _read_fps(stderr):
         # Method 0
         # Stream #0.0: Video: mpeg4, yuv420p, 1280x720 [PAR 1:1 DAR 16:9], 29.97 fps, 29.97 tbr, 29.97 tbn, 30k tbc
         m = re.search('Stream #.* Video: ppm,.* ([\.\d]+) fps\(c\)', line)
+        
         if not m is None:
             return float(m.groups()[0])
         # Method 1
         # Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p, 1280x720 [SAR 1:1 DAR 16:9], 1984 kb/s, 29.97 fps, 29.97 tbr, 30k tbn, 59.94 tbc
+        # Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p, 640x360 [SAR 1:1 DAR 16:9], 751 kb/s, 25 fps, 25 tbr, 25k tbn, 50 tbc
         m = re.search('Stream #.* Video: .* ([\.\d]+) fps', line)
         if not m is None:
             return float(m.groups()[0])
@@ -71,6 +73,7 @@ def frame_iter(file_name, frozen=False, frame_skip=1):
         IOError: Problem reading from ffmpeg
     """
     assert frame_skip > 0 and isinstance(frame_skip, int)
+    frame_skip = int(max(frame_skip, 1))
     if frozen:
         assert 'ffmpegbin.tar' in os.listdir(os.curdir), \
                "convert_video_ffmpeg was called with frozen=True, but \
